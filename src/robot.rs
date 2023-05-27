@@ -1,15 +1,19 @@
 use crate::poses::XyzWpr;
 use k::nalgebra::{try_convert, Matrix4};
-use k::{connect, Chain, Isometry3, JointType, NodeBuilder, Translation3, UnitQuaternion, Vector3};
+use k::{connect, Chain, Isometry3, JointType, NodeBuilder, Translation3, UnitQuaternion, Vector3, InverseKinematicsSolver};
 
 pub struct FanucLrMate200id {
     chain: Chain<f64>,
+    end_transform: Isometry3<f64>
 }
 
 impl FanucLrMate200id {
     pub fn new() -> Self {
         let chain = fanuc_lr_mate_200id();
-        Self { chain }
+        let end_transform = try_convert(Matrix4::new(
+            0.0, 0.0, 1.0, 0.0, 0.0, -1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+        )).unwrap();
+        Self { chain, end_transform }
     }
 
     pub fn set_joints(&mut self, joints: &[f64]) {
@@ -18,27 +22,32 @@ impl FanucLrMate200id {
         self.chain.set_joint_positions_unchecked(&rad_joints);
     }
 
-    pub fn poses(&self) -> Vec<XyzWpr> {
+    pub fn link_poses(&self) -> Vec<Isometry3<f64>> {
         let transforms = self.chain.update_transforms();
-        transforms
-            .iter()
-            .map(|t| XyzWpr::from_isometry(t))
-            .collect()
+        let mut modified = transforms[0..5].to_vec();
+        modified.push(self.end_pose());
+        modified
     }
 
     pub fn end_pose(&self) -> Isometry3<f64> {
         let transforms = self.chain.update_transforms();
         let last = transforms.last().unwrap();
-        let m = Matrix4::new(
-            0.0, 0.0, 1.0, 0.0, 0.0, -1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0,
-        );
-        // println!("last = {:?}", last.to_matrix());
-        let working = last.to_matrix() * m;
-        // println!("working = {:?}", working);
-        let iso: Isometry3<f64> = try_convert(working).unwrap();
-        // println!("iso = {:?}", iso);
-        // XyzWpr::from_isometry(&iso)
-        iso
+        let working = last * self.end_transform;
+        try_convert(working).unwrap()
+    }
+
+    pub fn find_joints(&self, pose: &Isometry3<f64>) -> Option<[f64; 6]> {
+        let un_shifted = pose * self.end_transform.inverse();
+        let solver = k::JacobianIkSolver::new(0.001, 0.001, 0.5, 100);
+        let link = self.chain.find("j6").unwrap();
+        let mut arm = k::SerialChain::from_end(link);
+        solver.solve(&arm, &un_shifted).unwrap();
+        Some(rad_to_fanuc_joints(&self.chain.joint_positions()))
+        // if let Ok(()) = solver.solve(&self.chain, pose) {
+        //     Some(rad_to_fanuc_joints(&chain.joint_positions()))
+        // } else {
+        //     None
+        // }
     }
 }
 
@@ -102,6 +111,15 @@ fn fanuc_joints_to_rad(joints: &[f64]) -> [f64; 6] {
     }
     rad_joints[2] += rad_joints[1];
     rad_joints
+}
+
+fn rad_to_fanuc_joints(rad_joints: &[f64]) -> [f64; 6] {
+    let mut joints = [0.0; 6];
+    for (i, j) in rad_joints.iter().enumerate() {
+        joints[i] = j.to_degrees();
+    }
+    joints[2] -= joints[1];
+    joints
 }
 
 #[cfg(test)]
