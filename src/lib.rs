@@ -1,4 +1,5 @@
 pub mod robot;
+pub mod representations;
 
 pub fn add(left: usize, right: usize) -> usize {
     left + right
