@@ -36,10 +36,6 @@ fn main() {
     let mut robot = FanucLrMate200id::new();
     robot.set_joints(&[-15.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
     let pose = robot.end_pose();
-
-
-
-
 }
 
 fn rad(deg: f64) -> f64 {
