@@ -1,4 +1,4 @@
-use k::nalgebra::{Rotation3, UnitVector3, Vector3, try_convert, Matrix4};
+use k::nalgebra::{try_convert, Matrix4, Rotation3, UnitVector3, Vector3};
 use k::{Isometry3, Translation3, UnitQuaternion};
 
 pub struct XyzWpr {

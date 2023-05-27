@@ -1,10 +1,13 @@
 use crate::poses::XyzWpr;
 use k::nalgebra::{try_convert, Matrix4};
-use k::{connect, Chain, Isometry3, JointType, NodeBuilder, Translation3, UnitQuaternion, Vector3, InverseKinematicsSolver};
+use k::{
+    connect, Chain, InverseKinematicsSolver, Isometry3, JointType, NodeBuilder, Translation3,
+    UnitQuaternion, Vector3,
+};
 
 pub struct FanucLrMate200id {
     chain: Chain<f64>,
-    end_transform: Isometry3<f64>
+    end_transform: Isometry3<f64>,
 }
 
 impl FanucLrMate200id {
@@ -12,8 +15,12 @@ impl FanucLrMate200id {
         let chain = fanuc_lr_mate_200id();
         let end_transform = try_convert(Matrix4::new(
             0.0, 0.0, 1.0, 0.0, 0.0, -1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0,
-        )).unwrap();
-        Self { chain, end_transform }
+        ))
+        .unwrap();
+        Self {
+            chain,
+            end_transform,
+        }
     }
 
     pub fn set_joints(&mut self, joints: &[f64]) {
@@ -37,6 +44,20 @@ impl FanucLrMate200id {
     }
 
     pub fn find_joints(&self, pose: &Isometry3<f64>) -> Option<[f64; 6]> {
+        // This seems to fail if the robot starts at all zeroes
+        let mut fixed_joints = self
+            .chain
+            .joint_positions()
+            .iter()
+            .map(|&x| x)
+            .collect::<Vec<f64>>();
+        for i in 0..fixed_joints.len() {
+            if fixed_joints[i].abs() <= 1.0e-6 {
+                fixed_joints[i] = 0.0001;
+            }
+        }
+        self.chain.set_joint_positions_unchecked(&fixed_joints);
+
         let un_shifted = pose * self.end_transform.inverse();
         let solver = k::JacobianIkSolver::new(0.001, 0.0001, 0.5, 100);
         let link = self.chain.find("j6").unwrap();
@@ -128,6 +149,15 @@ mod tests {
     use k::nalgebra::{try_convert, Matrix4};
     use k::Isometry3;
     use test_case::test_case;
+
+    #[test]
+    fn fanuc_ik_with_zeroes() {
+        let mut robot = FanucLrMate200id::new();
+        robot.set_joints(&[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
+        let transform = robot.end_pose();
+        let result = robot.find_joints(&transform);
+        assert!(result.is_some());
+    }
 
     #[test]
     fn fanuc_at_home() {
