@@ -2,27 +2,27 @@ use k::{Isometry3, Translation3, UnitQuaternion};
 use k::nalgebra::{Rotation3, UnitVector3, Vector3};
 
 
-struct XyzWpr {
-    x: f64,
-    y: f64,
-    z: f64,
-    w: f64,
-    p: f64,
-    r: f64}
+pub struct XyzWpr {
+    pub x: f64,
+    pub y: f64,
+    pub z: f64,
+    pub w: f64,
+    pub p: f64,
+    pub r: f64}
 
 impl XyzWpr {
-    fn new(x: f64, y: f64, z: f64, w: f64, p: f64, r: f64) -> Self {
+    pub fn new(x: f64, y: f64, z: f64, w: f64, p: f64, r: f64) -> Self {
         XyzWpr { x, y, z, w, p, r }
     }
 
-    fn from_isometry(isometry: &Isometry3<f64>) -> Self {
+    pub fn from_isometry(isometry: &Isometry3<f64>) -> Self {
         let translation = isometry.translation.vector;
         let rotation = isometry.rotation;
         let (r, p, w) = rotation.euler_angles();
         XyzWpr::new(translation.x, translation.y, translation.z, w.to_degrees(), p.to_degrees(), r.to_degrees())
     }
 
-    fn to_isometry(&self) -> Isometry3<f64> {
+    pub fn to_isometry(&self) -> Isometry3<f64> {
         let translation = Vector3::new(self.x, self.y, self.z);
         let rotation = UnitQuaternion::from_euler_angles(self.r.to_radians(),
                                                          self.p.to_radians(),
