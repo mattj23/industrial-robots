@@ -1,6 +1,5 @@
-use k::{Isometry3, Translation3, UnitQuaternion};
 use k::nalgebra::{Rotation3, UnitVector3, Vector3};
-
+use k::{Isometry3, Translation3, UnitQuaternion};
 
 pub struct XyzWpr {
     pub x: f64,
@@ -8,7 +7,8 @@ pub struct XyzWpr {
     pub z: f64,
     pub w: f64,
     pub p: f64,
-    pub r: f64}
+    pub r: f64,
+}
 
 impl XyzWpr {
     pub fn new(x: f64, y: f64, z: f64, w: f64, p: f64, r: f64) -> Self {
@@ -19,29 +19,49 @@ impl XyzWpr {
         let translation = isometry.translation.vector;
         let rotation = isometry.rotation;
         let (r, p, w) = rotation.euler_angles();
-        XyzWpr::new(translation.x, translation.y, translation.z, w.to_degrees(), p.to_degrees(), r.to_degrees())
+        XyzWpr::new(
+            translation.x,
+            translation.y,
+            translation.z,
+            w.to_degrees(),
+            p.to_degrees(),
+            r.to_degrees(),
+        )
     }
 
     pub fn to_isometry(&self) -> Isometry3<f64> {
         let translation = Vector3::new(self.x, self.y, self.z);
-        let rotation = UnitQuaternion::from_euler_angles(self.r.to_radians(),
-                                                         self.p.to_radians(),
-                                                         self.w.to_radians());
+        let rotation = UnitQuaternion::from_euler_angles(
+            self.r.to_radians(),
+            self.p.to_radians(),
+            self.w.to_radians(),
+        );
         Isometry3::from_parts(Translation3::from(translation), rotation)
+    }
+
+    pub fn approx_eq(&self, other: &XyzWpr, epsilon: f64) -> bool {
+        let m0 = self.to_isometry().to_matrix();
+        let m1 = other.to_isometry().to_matrix();
+        let diff = m0 - m1;
+        diff.amax() < epsilon
     }
 }
 
 impl std::fmt::Display for XyzWpr {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "XyzWpr {{ x: {}, y: {}, z: {}, w: {}, p: {}, r: {} }}", self.x, self.y, self.z, self.w, self.p, self.r)
+        write!(
+            f,
+            "XyzWpr {{ x: {}, y: {}, z: {}, w: {}, p: {}, r: {} }}",
+            self.x, self.y, self.z, self.w, self.p, self.r
+        )
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use k::nalgebra::{Matrix4, try_convert};
     use super::*;
     use approx::assert_relative_eq;
+    use k::nalgebra::{try_convert, Matrix4};
     use test_case::test_case;
 
     #[test_case((-0.8156824504, -0.5743236360, -0.0693866068, -413.8635232282, 0.0004524620, 0.1193088953, -0.9928570807, 263.1863811434, 0.5784997281, -0.8098874913, -0.0970583124, 291.9820746748, 0.0000000000, 0.0000000000, 0.0000000000, 1.0000000000), (-413.8635232282, 263.1863811434, 291.9820746748, -96.8338333769, -35.3450905433, 179.9682178248))]
@@ -59,11 +79,31 @@ mod tests {
     #[test_case((-0.2037395422, 0.6790363200, -0.7052658187, -1.7434467919, -0.8508250650, -0.4791894336, -0.2155787453, -14.7633944063, -0.4843417261, 0.5561359212, 0.6753709570, -79.9344894886, 0.0000000000, 0.0000000000, 0.0000000000, 1.0000000000), (-1.7434467919, -14.7633944063, -79.9344894886, 39.4698348110, 28.9693530939, -103.4665369616))]
     #[test_case((0.7230637290, 0.1432361537, -0.6757678952, -49.7118498703, 0.5101470443, 0.5488670300, 0.6621895322, 20.3765636776, 0.4657561992, -0.8235462268, 0.3237943410, 8.4422995188, 0.0000000000, 0.0000000000, 0.0000000000, 1.0000000000), (-49.7118498703, 20.3765636776, 8.4422995188, -68.5366961539, -27.7591729450, 35.2043221840))]
     #[test_case((0.9572590453, -0.2498925755, 0.1456324858, 59.5794643289, -0.2886479285, -0.7934076632, 0.5358979878, 6.7548483372, -0.0183709982, -0.5550297115, -0.8316276365, -88.8341095469, 0.0000000000, 0.0000000000, 0.0000000000, 1.0000000000), (59.5794643289, 6.7548483372, -88.8341095469, -146.2807856754, 1.0526398756, -16.7799423973))]
-    fn xyzwpr_to_isometry(mf: (f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64), pf: (f64, f64, f64, f64, f64, f64)) {
-        let m = Matrix4::new(mf.0, mf.1, mf.2, mf.3,
-                             mf.4, mf.5, mf.6, mf.7,
-                             mf.8, mf.9, mf.10, mf.11,
-                             mf.12, mf.13, mf.14, mf.15);
+    fn xyzwpr_to_isometry(
+        mf: (
+            f64,
+            f64,
+            f64,
+            f64,
+            f64,
+            f64,
+            f64,
+            f64,
+            f64,
+            f64,
+            f64,
+            f64,
+            f64,
+            f64,
+            f64,
+            f64,
+        ),
+        pf: (f64, f64, f64, f64, f64, f64),
+    ) {
+        let m = Matrix4::new(
+            mf.0, mf.1, mf.2, mf.3, mf.4, mf.5, mf.6, mf.7, mf.8, mf.9, mf.10, mf.11, mf.12, mf.13,
+            mf.14, mf.15,
+        );
         let p = XyzWpr::new(pf.0, pf.1, pf.2, pf.5, pf.4, pf.3);
         let t = p.to_isometry();
         let m_ = t.to_matrix();
