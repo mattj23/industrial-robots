@@ -88,7 +88,7 @@ fn fanuc_lr_mate_200id() -> Chain<f64> {
         .name("j6")
         .translation(Translation3::new(80.0, 0.0, 0.0))
         .joint_type(JointType::Rotational {
-            axis: Vector3::x_axis(),
+            axis: -Vector3::x_axis(),
         })
         .into_node();
 
@@ -114,18 +114,15 @@ mod tests {
     use k::Isometry3;
     use test_case::test_case;
 
-    // #[test]
-    // fn fanuc_at_home() {
-    //     let mut robot = FanucLrMate200id::new();
-    //     robot.set_joints(&[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
-    //     let transform = robot.end_pose();
-    //     let expected = XyzWpr::new(465.0, 0.0, 365.0, 180.0, -90.0, 0.0);
-    //     assert!(transform.approx_eq(&expected, 1e-6));
-    //     // assert_relative_eq!(transform.x, expected.x, epsilon = 1e-6);
-    //     // assert_relative_eq!(transform.y, expected.y, epsilon = 1e-6);
-    //     // assert_relative_eq!(transform.z, expected.z, epsilon = 1e-6);
-    // }
-    //
+    #[test]
+    fn fanuc_at_home() {
+        let mut robot = FanucLrMate200id::new();
+        robot.set_joints(&[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
+        let transform = XyzWpr::from_isometry(&robot.end_pose());
+        let expected = XyzWpr::new(465.0, 0.0, 365.0, 180.0, -90.0, 0.0);
+        assert!(transform.approx_eq(&expected, 1e-6));
+    }
+
     #[test_case((-15.0, 0.0, 0.0, 0.0, 0.0, 0.0), (0.0, -0.2588190451, 0.9659258263, 449.1555092244, -0.0, -0.9659258263, -0.2588190451, -120.3508559727, 1.0, -0.0, -0.0, 365.0, 0.0, 0.0, 0.0, 1.0))]
     #[test_case((20.0, 0.0, 0.0, 0.0, 0.0, 0.0), (0.0, 0.3420201433, 0.9396926208, 436.9570686654, -0.0, -0.9396926208, 0.3420201433, 159.0393666464, 1.0, -0.0, -0.0, 365.0, 0.0, 0.0, 0.0, 1.0))]
     #[test_case((0.0, -15.0, 0.0, 0.0, 0.0, 0.0), (0.0, 0.0, 1.0, 379.5897151162, -0.0, -1.0, 0.0, 0.0, 1.0, -0.0, -0.0, 353.7555226754, 0.0, 0.0, 0.0, 1.0))]
@@ -146,10 +143,5 @@ mod tests {
         let check = transform.to_matrix();
 
         assert_relative_eq!(check, expected, epsilon = 1e-6);
-
-        // assert_relative_eq!(transform.translation.x, expected.translation.x, epsilon = 1e-6);
-        // assert_relative_eq!(transform.translation.y, expected.translation.y, epsilon = 1e-6);
-        // assert_relative_eq!(transform.translation.z, expected.translation.z, epsilon = 1e-6);
-        // assert!(transform.approx_eq(&expected, 1e-6));
     }
 }
