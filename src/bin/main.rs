@@ -1,5 +1,6 @@
 // use industrial_robots::robot::fanuc_lr_mate_200id2;
 use industrial_robots::poses::XyzWpr;
+use industrial_robots::robot::FanucLrMate200id;
 
 use k::nalgebra::geometry::{Isometry3, IsometryMatrix3};
 use k::nalgebra::{try_convert, Matrix4, Translation3, Vector3};
@@ -27,10 +28,14 @@ fn main() {
     // println!("pose: w={}, p={}, r={}", pose.w, pose.p, pose.r);
 
     let p0 = XyzWpr::new(0.0, 0.0, 0.0, 180.0, -90.0, 0.0);
-    let p1 = XyzWpr::new(0.0, 0.0, 0.0, 0.0, -90.0, 180.0);
-    println!("p0: {:?}", p0.to_isometry());
-    println!("p1: {:?}", p1.to_isometry());
-    println!("approx: {}", p0.approx_eq(&p1, 0.0001));
+    println!("p0: {:?}", p0.to_isometry().to_matrix());
+    // let p1 = XyzWpr::new(0.0, 0.0, 0.0, 0.0, -90.0, 180.0);
+    // println!("p1: {:?}", p1.to_isometry());
+    // println!("approx: {}", p0.approx_eq(&p1, 0.0001));
+
+    let mut robot = FanucLrMate200id::new();
+    robot.set_joints(&[-15.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
+    let pose = robot.end_pose();
 
 
 
