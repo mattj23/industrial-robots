@@ -41,13 +41,12 @@ impl FanucLrMate200id {
         let solver = k::JacobianIkSolver::new(0.001, 0.001, 0.5, 100);
         let link = self.chain.find("j6").unwrap();
         let mut arm = k::SerialChain::from_end(link);
-        solver.solve(&arm, &un_shifted).unwrap();
-        Some(rad_to_fanuc_joints(&self.chain.joint_positions()))
-        // if let Ok(()) = solver.solve(&self.chain, pose) {
-        //     Some(rad_to_fanuc_joints(&chain.joint_positions()))
-        // } else {
-        //     None
-        // }
+
+        if let Ok(()) = solver.solve(&arm, &un_shifted) {
+            Some(rad_to_fanuc_joints(&self.chain.joint_positions()))
+        } else {
+            None
+        }
     }
 }
 
