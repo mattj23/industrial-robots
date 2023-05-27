@@ -38,7 +38,7 @@ impl FanucLrMate200id {
 
     pub fn find_joints(&self, pose: &Isometry3<f64>) -> Option<[f64; 6]> {
         let un_shifted = pose * self.end_transform.inverse();
-        let solver = k::JacobianIkSolver::new(0.001, 0.001, 0.5, 100);
+        let solver = k::JacobianIkSolver::new(0.001, 0.0001, 0.5, 100);
         let link = self.chain.find("j6").unwrap();
         let mut arm = k::SerialChain::from_end(link);
 

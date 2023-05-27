@@ -11,8 +11,8 @@ fn main() {
     let pose = robot.end_pose();
     println!("pose: {:?}", pose);
 
-    let target = Isometry3::translation(0.0, -10.0, -5.0) * pose;
-    // let target = pose.clone();
+    // let target = Isometry3::translation(0.0, -10.0, -5.0) * pose;
+    let target = pose.clone();
     println!("target: {:?}", pose);
     if let Some(joints) = robot.find_joints(&target) {
         println!("joints: {:?}", joints);
