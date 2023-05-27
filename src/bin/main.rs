@@ -1,4 +1,4 @@
-use industrial_robots::robot::fanuc_lr_mate_200id2;
+// use industrial_robots::robot::fanuc_lr_mate_200id2;
 use industrial_robots::poses::XyzWpr;
 
 use k::nalgebra::geometry::{Isometry3, IsometryMatrix3};
