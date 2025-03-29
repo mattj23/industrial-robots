@@ -4,6 +4,7 @@ use crate::{Iso3, Vector3};
 
 mod crx;
 
+pub use crx::Crx;
 
 /// This is the transformation which rotates the world XYZ coordinate system to the FANUC flange
 /// convention where Z is pointing directly out of the flange, Y is inverted from the world Y axis,
@@ -45,4 +46,3 @@ fn rad_to_joints(rad_joints: &[f64]) -> [f64; 6] {
     joints[2] -= joints[1];
     joints
 }
-
