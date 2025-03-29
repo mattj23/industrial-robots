@@ -1,26 +1,17 @@
-use industrial_robots::poses::XyzWpr;
-use industrial_robots::robot::FanucLrMate200id;
-
-use k::nalgebra::geometry::{Isometry3, IsometryMatrix3};
-use k::nalgebra::{try_convert, Matrix4, Translation3, Vector3};
-use k::*;
+use ik_geo::nalgebra::UnitQuaternion;
+use industrial_robots::frames::XyzWpr;
+use industrial_robots::Iso3;
+use industrial_robots::nalgebra::{try_convert, Matrix4};
 
 fn main() {
-    let mut robot = FanucLrMate200id::new();
-    robot.set_joints(&[80.97, 27.58, -47.58, 0.27, -46.98, 89.27]);
-    let pose = robot.end_pose();
-    println!("pose: {:?}", pose);
+    let c: Iso3 = try_convert(Matrix4::new(
+        0.0, 0.0, 1.0, 0.0, 0.0, -1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+    )).unwrap();
 
-    // let target = Isometry3::translation(0.0, -10.0, -5.0) * pose;
-    let target = pose.clone();
-    println!("target: {:?}", pose);
-    if let Some(joints) = robot.find_joints(&target) {
-        println!("joints: {:?}", joints);
-    } else {
-        println!("No solution found");
-    }
-}
+    let r = c.rotation.axis_angle().unwrap();
 
-fn rad(deg: f64) -> f64 {
-    deg * f64::pi() / 180.0
+
+    println!("{:?}", c);
+    println!("{:?}", r);
+    println!("{:?}", r.0.into_inner() * r.1);
 }

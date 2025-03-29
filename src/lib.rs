@@ -1,6 +1,15 @@
-pub mod poses;
+mod fanuc;
+pub mod frames;
 pub mod robot;
+mod type_aliases;
+mod helpers;
 
-pub use k::nalgebra::{try_convert, Isometry3, Matrix4, Translation3, UnitQuaternion, Vector3};
-pub use poses::XyzWpr;
-pub use robot::FanucLrMate200id;
+pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+
+// Re-export nalgebra and ik_geo to help consuming crates manage dependencies
+pub use ik_geo;
+pub use ik_geo::nalgebra;
+
+// Re-export type aliases and pose types
+pub use frames::XyzWpr;
+pub use type_aliases::*;
