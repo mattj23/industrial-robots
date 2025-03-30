@@ -1,8 +1,9 @@
-mod fanuc;
-pub mod frames;
+pub mod fanuc;
+mod frames;
 mod helpers;
 pub mod robot;
 mod type_aliases;
+pub mod micro_mesh;
 
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 

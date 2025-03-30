@@ -9,7 +9,7 @@
 
 use crate::fanuc::{end_adjust, joints_to_rad};
 use crate::helpers::parts_to_iso;
-use crate::type_aliases::Iso3;
+use crate::type_aliases::Frame3;
 use ik_geo::inverse_kinematics::auxiliary::Matrix3x7;
 use ik_geo::nalgebra::Matrix3x6;
 use ik_geo::robot::{Robot, three_parallel};
@@ -46,7 +46,7 @@ impl Crx {
         Self::new(540.0, 540.0, 160.0, 150.0)
     }
 
-    pub fn forward(&self, joints: &[f64; 6]) -> Iso3 {
+    pub fn forward(&self, joints: &[f64; 6]) -> Frame3 {
         let joints = joints_to_rad(joints);
         let result = self.robot.fk(&joints);
         parts_to_iso(result.0, result.1) * end_adjust()
@@ -276,7 +276,7 @@ mod tests {
 
     #[test]
     fn crx5ia_bulk() -> Result<()> {
-        let bytes = include_bytes!("fanuc_crx_5ia.json");
+        let bytes = include_bytes!("test_data/fanuc_crx_5ia.json");
         let data: Vec<([f64; 6], [f64; 16])> = serde_json::from_slice(bytes)?;
 
         let robot = Crx::new_5ia();
@@ -291,7 +291,7 @@ mod tests {
 
     #[test]
     fn crx10ia_bulk() -> Result<()> {
-        let bytes = include_bytes!("fanuc_crx_10ia.json");
+        let bytes = include_bytes!("test_data/fanuc_crx_10ia.json");
         let data: Vec<([f64; 6], [f64; 16])> = serde_json::from_slice(bytes)?;
 
         let robot = Crx::new_10ia();

@@ -1,4 +1,4 @@
-use crate::type_aliases::{Iso3, Point3, UnitVector3, Vector3};
+use crate::type_aliases::{Frame3, Point3, UnitVector3, Vector3};
 use ik_geo::nalgebra::{Matrix4, Rotation3, Translation3, UnitQuaternion, try_convert};
 
 /// A struct representing a 6D pose in XYZ and WPR (Yaw, Pitch, Roll) format, commonly used by
@@ -17,7 +17,7 @@ impl XyzWpr {
         XyzWpr { x, y, z, w, p, r }
     }
 
-    pub fn from_isometry(isometry: &Iso3) -> Self {
+    pub fn from_isometry(isometry: &Frame3) -> Self {
         let translation = isometry.translation.vector;
         let rotation = isometry.rotation;
         let (r, p, w) = rotation.euler_angles();
@@ -31,14 +31,14 @@ impl XyzWpr {
         )
     }
 
-    pub fn to_isometry(&self) -> Iso3 {
+    pub fn to_isometry(&self) -> Frame3 {
         let translation = Vector3::new(self.x, self.y, self.z);
         let rotation = UnitQuaternion::from_euler_angles(
             self.r.to_radians(),
             self.p.to_radians(),
             self.w.to_radians(),
         );
-        Iso3::from_parts(Translation3::from(translation), rotation)
+        Frame3::from_parts(Translation3::from(translation), rotation)
     }
 
     pub fn approx_eq(&self, other: &XyzWpr, epsilon: f64) -> bool {

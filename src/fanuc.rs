@@ -1,16 +1,31 @@
 //! Module for FANUC robot products.
 
-use crate::{Iso3, Vector3};
+use crate::{Frame3, Point3, Vector3};
 
 mod crx;
 
 pub use crx::Crx;
+use crate::micro_mesh::bytes_to_mesh;
+
+#[cfg(feature = "mesh_fanuc_crx5ia")]
+pub fn crx5ia_mesh() -> Vec<(Vec<Point3>, Vec<[u32; 3]>)> {
+    vec![
+        bytes_to_mesh(include_bytes!("./fanuc/meshes/crx-5ia-j0.smol")).unwrap(),
+        bytes_to_mesh(include_bytes!("./fanuc/meshes/crx-5ia-j1.smol")).unwrap(),
+        bytes_to_mesh(include_bytes!("./fanuc/meshes/crx-5ia-j2.smol")).unwrap(),
+        bytes_to_mesh(include_bytes!("./fanuc/meshes/crx-5ia-j3.smol")).unwrap(),
+        bytes_to_mesh(include_bytes!("./fanuc/meshes/crx-5ia-j4.smol")).unwrap(),
+        bytes_to_mesh(include_bytes!("./fanuc/meshes/crx-5ia-j5.smol")).unwrap(),
+        bytes_to_mesh(include_bytes!("./fanuc/meshes/crx-5ia-j6.smol")).unwrap(),
+    ]
+}
+
 
 /// This is the transformation which rotates the world XYZ coordinate system to the FANUC flange
 /// convention where Z is pointing directly out of the flange, Y is inverted from the world Y axis,
 /// and X is pointing straight up.
-fn end_adjust() -> Iso3 {
-    Iso3::rotation(Vector3::new(2.221441469079183, 0.0, 2.221441469079183))
+fn end_adjust() -> Frame3 {
+    Frame3::rotation(Vector3::new(2.221441469079183, 0.0, 2.221441469079183))
 }
 
 /// Convert FANUC joint angles from degrees to radians, including the J2/J3 interaction quirk.

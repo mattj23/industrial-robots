@@ -5,6 +5,11 @@ edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+mesh_fanuc_crx5ia = []
+mesh_fanuc_crx = ["mesh_fanuc_crx5ia"]
+mesh_all = ["mesh_fanuc_crx"]
+
 [dependencies]
 ik-geo = "0.1.2"
 
