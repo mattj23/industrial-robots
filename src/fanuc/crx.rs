@@ -8,14 +8,18 @@
 //! this series, the J2/J3 angles must be modified on their way in and out.
 
 use crate::fanuc::{end_adjust, joints_to_rad};
-use crate::helpers::parts_to_iso;
+use crate::helpers::{fk_result, parts_to_iso};
+use crate::nalgebra::{Translation, UnitQuaternion};
 use crate::type_aliases::Frame3;
+use crate::{Point3, Vector3};
 use ik_geo::inverse_kinematics::auxiliary::Matrix3x7;
 use ik_geo::nalgebra::Matrix3x6;
 use ik_geo::robot::{Robot, three_parallel};
 
 pub struct Crx {
     robot: Robot,
+    p_vectors: [Vector3; 7],
+    h_vectors: [Vector3; 6],
 }
 
 impl Crx {
@@ -32,8 +36,22 @@ impl Crx {
     fn new(z1: f64, x1: f64, x2: f64, y1: f64) -> Self {
         let p = crx_p_matrix(z1, x1, x2, y1);
         let h = crx_h_matrix();
+
+        let mut p_vectors = [Vector3::zeros(); 7];
+        let mut h_vectors = [Vector3::zeros(); 6];
+
+        for (i, col) in p.column_iter().enumerate() {
+            p_vectors[i] = Vector3::new(col[0], col[1], col[2]);
+        }
+
+        for (i, col) in h.column_iter().enumerate() {
+            h_vectors[i] = Vector3::new(col[0], col[1], col[2]);
+        }
+
         Self {
             robot: three_parallel(h, p),
+            p_vectors,
+            h_vectors,
         }
     }
 
@@ -46,10 +64,66 @@ impl Crx {
         Self::new(540.0, 540.0, 160.0, 150.0)
     }
 
+    /// Compute the forward kinematics of a series of joint angles for the CRX series of robots.
+    /// The joints should be provided in degrees as they would appear in the robot controller. The
+    /// output will be a `Frame3` object representing the position and orientation of the robot's
+    /// flange in relation to the robot origin.
+    ///
+    /// The output frame will match the FANUC controller in position and orientation.
+    ///
+    /// # Arguments
+    ///
+    /// * `joints`: The joint angles for the robot in degrees. This should be an array of 6 values
+    ///   representing the angles for each joint in the order of J1, J2, J3, J4, J5, and J6.
+    ///
+    /// returns: Isometry<f64, Unit<Quaternion<f64>>, 3>
     pub fn forward(&self, joints: &[f64; 6]) -> Frame3 {
         let joints = joints_to_rad(joints);
-        let result = self.robot.fk(&joints);
-        parts_to_iso(result.0, result.1) * end_adjust()
+        fk_result(&self.robot, &joints) * end_adjust()
+    }
+
+    /// Compute the forward kinematics of a series of joint angles for the CRX series of robots,
+    /// returning the full kinematic chain for each joint in the robot. This will return an array
+    /// of `Frame3` objects representing the position and orientation of each joint in relation
+    /// to the robot origin. This can be useful for visualizing the full kinematic chain of the
+    /// robot and understanding how each joint contributes to the overall position and
+    /// orientation of the robot's flange.
+    ///
+    /// The final frame in the array will represent the position and orientation of the robot's
+    /// flange, and will be identical to the result of the `forward` method, matching the expected
+    /// value of the actual robot controller. The other frames in the array will be at the
+    /// kinematic link origins, and do not have any corresponding values in the actual robot.
+    ///
+    /// # Arguments
+    ///
+    /// * `joints`: The joint angles for the robot in degrees. This should be an array of 6 values
+    ///  representing the angles for each joint in the order of J1, J2, J3, J4, J5, and J6.
+    ///
+    /// returns: [Isometry<f64, Unit<Quaternion<f64>>, 3>; 6]
+    pub fn forward_with_links(&self, joints: &[f64; 6]) -> [Frame3; 6] {
+        let joints = joints_to_rad(joints);
+
+        // The first link is at the origin, rotated by the first joint angle
+        let f1 = Frame3::rotation(self.h_vectors[0] * joints[0]);
+
+        let f2 = f1 * self.local_link_frame(1, joints[1]);
+        let f3 = f2 * self.local_link_frame(2, joints[2]);
+        let f4 = f3 * self.local_link_frame(3, joints[3]);
+        let f5 = f4 * self.local_link_frame(4, joints[4]);
+        let f6 = fk_result(&self.robot, &joints) * end_adjust();
+
+        [f1, f2, f3, f4, f5, f6]
+    }
+
+    fn local_link_frame(&self, i: usize, joint: f64) -> Frame3 {
+        Frame3::from_parts(
+            Translation::<f64, 3>::new(
+                self.p_vectors[i].x,
+                self.p_vectors[i].y,
+                self.p_vectors[i].z,
+            ),
+            UnitQuaternion::new(self.h_vectors[i] * joint),
+        )
     }
 }
 
