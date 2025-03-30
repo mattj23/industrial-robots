@@ -11,7 +11,7 @@ mesh_fanuc_crx = ["mesh_fanuc_crx5ia"]
 mesh_all = ["mesh_fanuc_crx"]
 
 [dependencies]
-ik-geo = "0.1.2"
+ik-geo = { git = "https://github.com/mattj23/ik-geo-rust.git", branch="main" }
 
 [dev-dependencies]
 test-case = "3.3.1"
