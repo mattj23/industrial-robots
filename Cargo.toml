@@ -7,7 +7,8 @@ edition = "2024"
 
 [features]
 mesh_fanuc_crx5ia = []
-mesh_fanuc_crx = ["mesh_fanuc_crx5ia"]
+mesh_fanuc_crx10ia = []
+mesh_fanuc_crx = ["mesh_fanuc_crx5ia", "mesh_fanuc_crx10ia"]
 mesh_all = ["mesh_fanuc_crx"]
 
 [dependencies]

@@ -4,8 +4,8 @@ use crate::{Frame3, Point3, Vector3};
 
 mod crx;
 
-pub use crx::Crx;
 use crate::micro_mesh::bytes_to_mesh;
+pub use crx::Crx;
 
 #[cfg(feature = "mesh_fanuc_crx5ia")]
 pub fn crx5ia_mesh() -> Vec<(Vec<Point3>, Vec<[u32; 3]>)> {
@@ -20,6 +20,18 @@ pub fn crx5ia_mesh() -> Vec<(Vec<Point3>, Vec<[u32; 3]>)> {
     ]
 }
 
+#[cfg(feature = "mesh_fanuc_crx10ia")]
+pub fn crx10ia_mesh() -> Vec<(Vec<Point3>, Vec<[u32; 3]>)> {
+    vec![
+        bytes_to_mesh(include_bytes!("./fanuc/meshes/crx-10ia-j0.smol")).unwrap(),
+        bytes_to_mesh(include_bytes!("./fanuc/meshes/crx-10ia-j1.smol")).unwrap(),
+        bytes_to_mesh(include_bytes!("./fanuc/meshes/crx-10ia-j2.smol")).unwrap(),
+        bytes_to_mesh(include_bytes!("./fanuc/meshes/crx-10ia-j3.smol")).unwrap(),
+        bytes_to_mesh(include_bytes!("./fanuc/meshes/crx-10ia-j4.smol")).unwrap(),
+        bytes_to_mesh(include_bytes!("./fanuc/meshes/crx-10ia-j5.smol")).unwrap(),
+        bytes_to_mesh(include_bytes!("./fanuc/meshes/crx-10ia-j6.smol")).unwrap(),
+    ]
+}
 
 /// This is the transformation which rotates the world XYZ coordinate system to the FANUC flange
 /// convention where Z is pointing directly out of the flange, Y is inverted from the world Y axis,
