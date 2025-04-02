@@ -8,13 +8,13 @@
 //! this series, the J2/J3 angles must be modified on their way in and out.
 
 use crate::fanuc::{end_adjust, joints_to_rad};
-use crate::helpers::{fk_result, parts_to_iso};
+use crate::helpers::{fk_result, iso_to_parts, parts_to_iso};
 use crate::nalgebra::{Translation, UnitQuaternion};
 use crate::type_aliases::Frame3;
 use crate::{Point3, Vector3};
 use ik_geo::inverse_kinematics::auxiliary::Matrix3x7;
 use ik_geo::nalgebra::Matrix3x6;
-use ik_geo::robot::{Robot, three_parallel};
+use ik_geo::robot::{Robot, three_parallel, IKSolver, three_parallel_two_intersecting, two_intersecting};
 
 pub struct Crx {
     robot: Robot,
@@ -49,7 +49,7 @@ impl Crx {
         }
 
         Self {
-            robot: three_parallel(h, p),
+            robot: three_parallel_two_intersecting(h, p),
             p_vectors,
             h_vectors,
         }
@@ -113,6 +113,33 @@ impl Crx {
         let f6 = fk_result(&self.robot, &joints) * end_adjust();
 
         [f1, f2, f3, f4, f5, f6]
+    }
+
+    pub fn ik(&self, target: &Frame3) {
+        let fk0 = fk_result(&self.robot, &[0.0; 6]);
+        println!("Reference: {:?}", fk0);
+        
+        // Undo the end effector adjustment
+        let target =  target * end_adjust().inverse();
+        
+        let (r, t) = iso_to_parts(&target);
+        println!("Target: {:?}", target);
+        println!("---");
+        println!("Rotation: {:?}", r);
+        println!("Translation: {:?}", t);
+        let solutions = self.robot.ik(r, t);
+        
+        println!("Solutions: {:?}", solutions);
+
+        for (q, is_ls) in solutions {
+            if is_ls {
+                println!("LS solution: {:?}", q);
+            }
+            else {
+                println!("Non-LS solution: {:?}", q);
+            }
+
+        }
     }
 
     fn local_link_frame(&self, i: usize, joint: f64) -> Frame3 {

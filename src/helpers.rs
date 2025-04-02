@@ -16,6 +16,13 @@ pub fn parts_to_iso(rot: Matrix3<f64>, trans: Vector3) -> Frame3 {
     Frame3::from_parts(t, r)
 }
 
+pub fn iso_to_parts(iso: &Frame3) -> (Matrix3<f64>, Vector3) {
+    let t = iso.translation.vector;
+    let r = iso.rotation.to_rotation_matrix();
+
+    (r.into(), t)
+}
+
 pub fn row_slice_to_iso(slice: &[f64]) -> Result<Frame3> {
     if slice.len() != 16 {
         return Err("Slice length must be 16".into());
