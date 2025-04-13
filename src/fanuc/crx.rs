@@ -14,11 +14,11 @@ use crate::type_aliases::Frame3;
 use crate::{Point3, Vector3};
 use ik_geo::inverse_kinematics::auxiliary::Matrix3x7;
 use ik_geo::nalgebra::Matrix3x6;
-use ik_geo::robot::{Robot, three_parallel, IKSolver, three_parallel_two_intersecting, two_intersecting};
+use ik_geo::robot::{Robot, three_parallel, IKSolver, three_parallel_two_intersecting, two_intersecting, two_parallel};
 
 pub struct Crx {
     robot: Robot,
-    p_vectors: [Vector3; 7],
+    pub p_vectors: [Vector3; 7],
     h_vectors: [Vector3; 6],
 }
 
@@ -49,7 +49,7 @@ impl Crx {
         }
 
         Self {
-            robot: three_parallel_two_intersecting(h, p),
+            robot: two_parallel(h, p),
             p_vectors,
             h_vectors,
         }
@@ -118,17 +118,17 @@ impl Crx {
     pub fn ik(&self, target: &Frame3) {
         let fk0 = fk_result(&self.robot, &[0.0; 6]);
         println!("Reference: {:?}", fk0);
-        
+
         // Undo the end effector adjustment
         let target =  target * end_adjust().inverse();
-        
+
         let (r, t) = iso_to_parts(&target);
         println!("Target: {:?}", target);
         println!("---");
         println!("Rotation: {:?}", r);
         println!("Translation: {:?}", t);
         let solutions = self.robot.ik(r, t);
-        
+
         println!("Solutions: {:?}", solutions);
 
         for (q, is_ls) in solutions {
