@@ -8,18 +8,17 @@
 //! this series, the J2/J3 angles must be modified on their way in and out.
 
 use crate::fanuc::{end_adjust, joints_to_rad};
-use crate::helpers::{fk_result, iso_to_parts, parts_to_iso};
 use crate::nalgebra::{Translation, UnitQuaternion};
 use crate::type_aliases::Frame3;
-use crate::{Point3, Vector3};
-use ik_geo::inverse_kinematics::auxiliary::Matrix3x7;
-use ik_geo::nalgebra::Matrix3x6;
-use ik_geo::robot::{Robot, three_parallel, IKSolver, three_parallel_two_intersecting, two_intersecting, two_parallel};
+use crate::Vector3;
+use ik_geo::robot::IKSolver;
 
 pub struct Crx {
-    robot: Robot,
-    pub p_vectors: [Vector3; 7],
-    h_vectors: [Vector3; 6],
+    z1: f64,
+    x1: f64,
+    x2: f64,
+    y1: f64,
+    h: [Vector3; 6],
 }
 
 impl Crx {
@@ -34,25 +33,17 @@ impl Crx {
     ///
     /// returns: Crx
     fn new(z1: f64, x1: f64, x2: f64, y1: f64) -> Self {
-        let p = crx_p_matrix(z1, x1, x2, y1);
-        let h = crx_h_matrix();
+        // The h vectors are the directions of the rotation axes associated with each joint.
+        let h = [
+            Vector3::z(),
+            Vector3::y(),
+            -Vector3::y(),
+            -Vector3::x(),
+            -Vector3::y(),
+            -Vector3::x(),
+        ];
 
-        let mut p_vectors = [Vector3::zeros(); 7];
-        let mut h_vectors = [Vector3::zeros(); 6];
-
-        for (i, col) in p.column_iter().enumerate() {
-            p_vectors[i] = Vector3::new(col[0], col[1], col[2]);
-        }
-
-        for (i, col) in h.column_iter().enumerate() {
-            h_vectors[i] = Vector3::new(col[0], col[1], col[2]);
-        }
-
-        Self {
-            robot: two_parallel(h, p),
-            p_vectors,
-            h_vectors,
-        }
+        Self { z1, x1, x2, y1, h }
     }
 
     /// Creates a new CRX-5iA robot
@@ -77,9 +68,8 @@ impl Crx {
     ///   representing the angles for each joint in the order of J1, J2, J3, J4, J5, and J6.
     ///
     /// returns: Isometry<f64, Unit<Quaternion<f64>>, 3>
-    pub fn forward(&self, joints: &[f64; 6]) -> Frame3 {
-        let joints = joints_to_rad(joints);
-        fk_result(&self.robot, &joints) * end_adjust()
+    pub fn fk(&self, joints: &[f64; 6]) -> Frame3 {
+        self.fk_all(joints)[5]
     }
 
     /// Compute the forward kinematics of a series of joint angles for the CRX series of robots,
@@ -100,91 +90,67 @@ impl Crx {
     ///  representing the angles for each joint in the order of J1, J2, J3, J4, J5, and J6.
     ///
     /// returns: [Isometry<f64, Unit<Quaternion<f64>>, 3>; 6]
-    pub fn forward_with_links(&self, joints: &[f64; 6]) -> [Frame3; 6] {
+    pub fn fk_all(&self, joints: &[f64; 6]) -> [Frame3; 6] {
         let joints = joints_to_rad(joints);
 
         // The first link is at the origin, rotated by the first joint angle
-        let f1 = Frame3::rotation(self.h_vectors[0] * joints[0]);
+        let f1 = Frame3::rotation(self.h[0] * joints[0]);
 
-        let f2 = f1 * self.local_link_frame(1, joints[1]);
-        let f3 = f2 * self.local_link_frame(2, joints[2]);
-        let f4 = f3 * self.local_link_frame(3, joints[3]);
-        let f5 = f4 * self.local_link_frame(4, joints[4]);
-        let f6 = fk_result(&self.robot, &joints) * end_adjust();
+        // J1->J2 has no origin shift
+        let f2 = f1 * Frame3::rotation(self.h[1] * joints[1]);
+
+        // J2->J3 shifts up by the z1 value
+        let f3 = f2 * Frame3::from_parts(
+            Translation::<f64, 3>::new(0.0, 0.0, self.z1),
+            UnitQuaternion::new(self.h[2] * joints[2]),
+        );
+
+        // J3->J4 has no origin shift
+        let f4 = f3 * Frame3::rotation(self.h[3] * joints[3]);
+
+        // J4->J5 shifts by x1, -y1
+        let f5 = f4 * Frame3::from_parts(
+            Translation::<f64, 3>::new(self.x1, -self.y1, 0.0),
+            UnitQuaternion::new(self.h[4] * joints[4]),
+        );
+
+        // J5->J6 shifts by x2, then gets re-oriented by the FANUC end
+        // effector adjustment
+        // let f6 = fk_result(&self.robot, &joints) * end_adjust();
+        let f6 = f5 * Frame3::from_parts(
+            Translation::<f64, 3>::new(self.x2, 0.0, 0.0),
+            UnitQuaternion::new(self.h[5] * joints[5]),
+        ) * end_adjust();
 
         [f1, f2, f3, f4, f5, f6]
     }
 
-    pub fn ik(&self, target: &Frame3) {
-        let fk0 = fk_result(&self.robot, &[0.0; 6]);
-        println!("Reference: {:?}", fk0);
-
-        // Undo the end effector adjustment
-        let target =  target * end_adjust().inverse();
-
-        let (r, t) = iso_to_parts(&target);
-        println!("Target: {:?}", target);
-        println!("---");
-        println!("Rotation: {:?}", r);
-        println!("Translation: {:?}", t);
-        let solutions = self.robot.ik(r, t);
-
-        println!("Solutions: {:?}", solutions);
-
-        for (q, is_ls) in solutions {
-            if is_ls {
-                println!("LS solution: {:?}", q);
-            }
-            else {
-                println!("Non-LS solution: {:?}", q);
-            }
-
-        }
-    }
-
-    fn local_link_frame(&self, i: usize, joint: f64) -> Frame3 {
-        Frame3::from_parts(
-            Translation::<f64, 3>::new(
-                self.p_vectors[i].x,
-                self.p_vectors[i].y,
-                self.p_vectors[i].z,
-            ),
-            UnitQuaternion::new(self.h_vectors[i] * joint),
-        )
-    }
-}
-
-/// Creates the rotation axes matrix for the CRX series of robots. These are the same across models
-/// because the robots are basically identical except for the lengths of the links.
-fn crx_h_matrix() -> Matrix3x6<f64> {
-    Matrix3x6::<f64>::new(
-        0.0, 0.0, 0.0, -1.0, 0.0, -1.0, 0.0, 1.0, -1.0, 0.0, -1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0,
-        0.0,
-    )
-}
-
-/// Create the p matrix for the CRX series of robots. These are the 3D vectors from the origin of
-/// each link to the origin of the next link in the IK geo model (see pages 5 and 6 of the IK-Geo
-/// paper).
-///
-/// The FANUC CRX series has five unique link lengths which distinguish the kinematics of each
-/// model, and these must be provided as the parameters to this function.
-///
-/// # Arguments
-///
-/// * `z1`: The height from the J2 axis to the J3 axis (410mm on the CRX-5iA datasheet).
-/// * `x1`: The length from the J3 axis to the J5 axis (430mm on the CRX-5iA datasheet).
-/// * `x2`: The length from the J5 axis to the robot flange (145mm on the CRX-5iA datasheet).
-/// * `y1`: The offset from the J1 axis to the J2 axis (130mm on the CRX-5iA datasheet).
-///
-/// returns: Matrix<f64, Const<3>, Const<7>, ArrayStorage<f64, 3, 7>>
-fn crx_p_matrix(z1: f64, x1: f64, x2: f64, y1: f64) -> Matrix3x7<f64> {
-    let mut p = Matrix3x7::<f64>::zeros();
-    p[(2, 2)] = z1;
-    p[(0, 4)] = x1;
-    p[(1, 4)] = -y1;
-    p[(0, 5)] = x2;
-    p
+    // pub fn ik(&self, target: &Frame3) {
+    //     let fk0 = fk_result(&self.robot, &[0.0; 6]);
+    //     println!("Reference: {:?}", fk0);
+    //
+    //     // Undo the end effector adjustment
+    //     let target =  target * end_adjust().inverse();
+    //
+    //     let (r, t) = iso_to_parts(&target);
+    //     println!("Target: {:?}", target);
+    //     println!("---");
+    //     println!("Rotation: {:?}", r);
+    //     println!("Translation: {:?}", t);
+    //     let solutions = self.robot.ik(r, t);
+    //
+    //     println!("Solutions: {:?}", solutions);
+    //
+    //     for (q, is_ls) in solutions {
+    //         if is_ls {
+    //             println!("LS solution: {:?}", q);
+    //         }
+    //         else {
+    //             println!("Non-LS solution: {:?}", q);
+    //         }
+    //
+    //     }
+    // }
 }
 
 #[cfg(test)]
@@ -201,7 +167,7 @@ mod tests {
             0.0, 0.0, 1.0, 575.0, 0.0, -1.0, 0.0, -130.0, 1.0, 0.0, 0.0, 410.0, 0.0, 0.0, 0.0, 1.0,
         ])?;
         let robot = Crx::new_5ia();
-        let fwd = robot.forward(&j);
+        let fwd = robot.fk(&j);
 
         assert_relative_eq!(expected, fwd, epsilon = 1e-6);
         Ok(())
@@ -229,7 +195,7 @@ mod tests {
             1.0,
         ])?;
         let robot = Crx::new_5ia();
-        let fwd = robot.forward(&j);
+        let fwd = robot.fk(&j);
 
         assert_relative_eq!(expected, fwd, epsilon = 1e-6);
         Ok(())
@@ -257,7 +223,7 @@ mod tests {
             1.0,
         ])?;
         let robot = Crx::new_5ia();
-        let fwd = robot.forward(&j);
+        let fwd = robot.fk(&j);
 
         assert_relative_eq!(expected, fwd, epsilon = 1e-6);
         Ok(())
@@ -285,7 +251,7 @@ mod tests {
             1.0,
         ])?;
         let robot = Crx::new_5ia();
-        let fwd = robot.forward(&j);
+        let fwd = robot.fk(&j);
 
         assert_relative_eq!(expected, fwd, epsilon = 1e-6);
         Ok(())
@@ -313,7 +279,7 @@ mod tests {
             1.0,
         ])?;
         let robot = Crx::new_5ia();
-        let fwd = robot.forward(&j);
+        let fwd = robot.fk(&j);
 
         assert_relative_eq!(expected, fwd, epsilon = 1e-6);
         Ok(())
@@ -341,7 +307,7 @@ mod tests {
             1.0,
         ])?;
         let robot = Crx::new_5ia();
-        let fwd = robot.forward(&j);
+        let fwd = robot.fk(&j);
 
         assert_relative_eq!(expected, fwd, epsilon = 1e-6);
         Ok(())
@@ -369,7 +335,7 @@ mod tests {
             1.0,
         ])?;
         let robot = Crx::new_5ia();
-        let fwd = robot.forward(&j);
+        let fwd = robot.fk(&j);
 
         assert_relative_eq!(expected, fwd, epsilon = 1e-6);
         Ok(())
@@ -382,7 +348,7 @@ mod tests {
 
         let robot = Crx::new_5ia();
         for (joints, expected) in data {
-            let fwd = robot.forward(&joints);
+            let fwd = robot.fk(&joints);
             let expected = row_slice_to_iso(&expected)?;
             assert_relative_eq!(fwd, expected, epsilon = 1e-6);
         }
@@ -397,7 +363,7 @@ mod tests {
 
         let robot = Crx::new_10ia();
         for (joints, expected) in data {
-            let fwd = robot.forward(&joints);
+            let fwd = robot.fk(&joints);
             let expected = row_slice_to_iso(&expected)?;
             assert_relative_eq!(fwd, expected, epsilon = 1e-6);
         }

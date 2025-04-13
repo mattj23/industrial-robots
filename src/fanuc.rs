@@ -3,7 +3,6 @@
 use crate::{Frame3, Point3, Vector3};
 
 mod crx;
-mod crx_ik;
 
 use crate::micro_mesh::bytes_to_mesh;
 pub use crx::Crx;
