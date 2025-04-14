@@ -8,9 +8,9 @@
 //! this series, the J2/J3 angles must be modified on their way in and out.
 
 use crate::fanuc::{end_adjust, joints_to_rad};
-use crate::nalgebra::{Translation, UnitQuaternion};
+use crate::nalgebra::{Matrix3, Translation, Translation3, UnitQuaternion};
 use crate::type_aliases::Frame3;
-use crate::Vector3;
+use crate::{Vector3, Point3};
 use ik_geo::robot::IKSolver;
 
 pub struct Crx {
@@ -125,6 +125,19 @@ impl Crx {
         [f1, f2, f3, f4, f5, f6]
     }
 
+    ///
+    ///
+    /// # Arguments
+    ///
+    /// * `d`:
+    ///
+    /// returns: Option<(f64, f64)>
+    ///
+    /// # Examples
+    ///
+    /// ```
+    ///
+    /// ```
     // pub fn ik(&self, target: &Frame3) {
     //     let fk0 = fk_result(&self.robot, &[0.0; 6]);
     //     println!("Reference: {:?}", fk0);
@@ -151,7 +164,60 @@ impl Crx {
     //
     //     }
     // }
+
+    /// Finds the a, h values for a candidate O4 position, where `d` is the distance
+    /// between the robot origin and the O4 point. If d is too small or too large for
+    /// a valid solution, None is returned.
+    ///
+    /// The value of `a` is the distance to the corresponding O3 candidate point along
+    /// the ray from the candidate O4 point to the origin. The value of `a` is the same
+    /// for both the upper and lower associated O3 candidate points.
+    ///
+    /// The value of `h` is the distance to the corresponding O3 candidate points above
+    /// or below the ray from the candidate O4 point to the origin. The upper candidate
+    /// O3 point is at (a, h), and the lower candidate O3 point is at (a, -h).
+    ///
+    /// # Arguments
+    ///
+    /// * `d`: the distance between the robot origin and the O4 point
+    fn corner_xy(&self, d: f64) -> Option<(f64, f64)> {
+        // d must be at least as large as the distance between the smaller radius and the
+        // larger radius, but no larger than the sum of the two radii
+        if d < self.z1.max(self.x1) - self.z1.min(self.x1) || d > self.z1 + self.x1 {
+            None
+        } else {
+            let a = (d.powi(2) + self.x1.powi(2) - self.z1.powi(2)) / (2.0 * d);
+            let h = (self.x1.powi(2) - a.powi(2)).sqrt();
+            Some((a, h))
+        }
+    }
+
+    fn candidate_o3s(&self, o4: &Point3) -> (Option<Point3>, Option<Point3>) {
+        // Vector from the candidate point to the origin
+        let v0 = -o4.coords;
+
+        // Vector from the candidate point's projection on the XY plane to the origin
+        let vp = Vector3::new(v0.x, v0.y, 0.0);
+
+        // If the vector from the candidate point projection to the origin is zero
+        // length, it means that the candidate point is directly above the robot origin,
+        // and there's probably some sort of special case
+        let e0 = v0.normalize();
+        let e2 = v0.cross(&vp).normalize();
+        let e1 = e2.cross(&e0).normalize();
+        let rot_m = Matrix3::from_columns(&[e0, e1, e2]);
+        let r = UnitQuaternion::from_matrix(&rot_m);
+        let t = Translation3::from(o4);
+        let tf = Frame3::from_parts(t, r).inverse();
+
+        
+
+
+
+        todo!()
+    }
 }
+
 
 #[cfg(test)]
 mod tests {
