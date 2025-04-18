@@ -1,13 +1,6 @@
 use crate::Result;
-use crate::nalgebra::Matrix4;
 use crate::type_aliases::{Frame3, Vector3};
-use ik_geo::nalgebra::{Matrix3, Translation3, UnitQuaternion, try_convert};
-use ik_geo::robot::Robot;
-
-pub fn fk_result(robot: &Robot, joint_angles: &[f64; 6]) -> Frame3 {
-    let result = robot.fk(&joint_angles);
-    parts_to_iso(result.0, result.1)
-}
+use crate::nalgebra::{Matrix3, Translation3, UnitQuaternion, try_convert, Matrix4};
 
 pub fn parts_to_iso(rot: Matrix3<f64>, trans: Vector3) -> Frame3 {
     let r = UnitQuaternion::from_matrix(&rot);

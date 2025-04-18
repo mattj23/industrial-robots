@@ -1,4 +1,3 @@
-use ik_geo::nalgebra::UnitQuaternion;
 use industrial_robots::Frame3;
 use industrial_robots::nalgebra::{Matrix4, try_convert};
 

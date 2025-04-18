@@ -12,7 +12,7 @@ mesh_fanuc_crx = ["mesh_fanuc_crx5ia", "mesh_fanuc_crx10ia"]
 mesh_all = ["mesh_fanuc_crx"]
 
 [dependencies]
-ik-geo = { git = "https://github.com/mattj23/ik-geo-rust.git", branch="main" }
+parry3d-f64 = { version = "0.19.0", features = ["serde-serialize"] }
 
 [dev-dependencies]
 test-case = "3.3.1"
