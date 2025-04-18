@@ -1,6 +1,6 @@
 [package]
 name = "industrial-robots"
-version = "0.2.1"
+version = "0.2.3"
 edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -13,6 +13,7 @@ mesh_all = ["mesh_fanuc_crx"]
 
 [dependencies]
 parry3d-f64 = { version = "0.19.0", features = ["serde-serialize"] }
+rayon = { version = "1.10.0" }
 
 [dev-dependencies]
 test-case = "3.3.1"

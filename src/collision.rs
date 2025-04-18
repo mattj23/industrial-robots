@@ -1,8 +1,9 @@
 //! This module contains tools for detecting collisions between objects in a 3D space.
 
-use parry3d_f64::query;
 use crate::{Frame3, Result};
+use parry3d_f64::query;
 use parry3d_f64::query::intersection_test;
+use rayon::prelude::*;
 
 // We'll use the hashmap and hashset from parry3d_f64 for collision detection, which under normal
 // circumstances will be from the `hashbrown` crate and use extremely fast hashing algorithms
@@ -168,23 +169,56 @@ impl CollisionScene {
         id2: &[usize],
         transforms: &[(usize, Frame3)],
     ) -> Result<Vec<f64>> {
-        let mesh1 = self.meshes.get(&id1).ok_or(format!("Mesh id {} not found", id1))?;
+        let mesh1 = self
+            .meshes
+            .get(&id1)
+            .ok_or(format!("Mesh id {} not found", id1))?;
         let lookups = self.quick_lookups(transforms);
+        let iso1 = &lookups[&id1];
 
-        let mut distances = Vec::with_capacity(id2.len());
-        for &id2 in id2.iter() {
-            let mesh2 = self.meshes.get(&id2).ok_or(format!("Mesh id {} not found", id2))?;
-            let iso1 = &lookups[&id1];
-            let iso2 = &lookups[&id2];
+        // Run in parallel
+        let results = id2
+            .par_iter()
+            .map(|id| {
+                if let Some(mesh2) = self.meshes.get(id) {
+                    let iso2 = &lookups[id];
 
+                    if let Ok(d) = query::distance(iso1, &mesh1.shape, iso2, &mesh2.shape) {
+                        (*id, Ok(d))
+                    } else {
+                        (*id, Err("Distance check failed"))
+                    }
+                } else {
+                    (*id, Err("Missing mesh id"))
+                }
+            })
+            .collect::<Vec<_>>();
 
-            // Check for distance
-            let d = query::distance(iso1, &mesh1.shape, iso2, &mesh2.shape)
-                .map_err(|e| format!("Distance check to {} failed: {}", id2, e))?;
-            distances.push(d);
+        // Create an ordering map to return the results in the same order as the input
+        let mut mapped = HashMap::new();
+        for (id, d) in results {
+            let d = d.map_err(|e| format!("Distance check to {} failed: {}", id, e))?;
+            mapped.insert(id, d);
         }
 
-        Ok(distances)
+        Ok(id2.iter().map(|&id| mapped[&id]).collect())
+
+        // Single threaded version
+        // let mut distances = Vec::with_capacity(id2.len());
+        // for &id2 in id2.iter() {
+        //     let mesh2 = self
+        //         .meshes
+        //         .get(&id2)
+        //         .ok_or(format!("Mesh id {} not found", id2))?;
+        //     let iso1 = &lookups[&id1];
+        //     let iso2 = &lookups[&id2];
+        //
+        //     // Check for distance
+        //     let d = query::distance(iso1, &mesh1.shape, iso2, &mesh2.shape)
+        //         .map_err(|e| format!("Distance check to {} failed: {}", id2, e))?;
+        //     distances.push(d);
+        // }
+        // Ok(distances)
     }
 
     fn quick_skip_ids(&self, skip_ids: Option<&[usize]>) -> HashSet<usize> {
