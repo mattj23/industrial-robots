@@ -1,5 +1,5 @@
-use crate::type_aliases::{Frame3, Point3, UnitVector3, Vector3};
-use crate::nalgebra::{Matrix4, Rotation3, Translation3, UnitQuaternion, try_convert};
+use crate::nalgebra::{Matrix4, Translation3, UnitQuaternion};
+use crate::type_aliases::{Frame3, Vector3};
 
 /// A struct representing a 6D pose in XYZ and WPR (Yaw, Pitch, Roll) format, commonly used by
 /// FANUC robots. Angles are represented in degrees.
@@ -62,8 +62,8 @@ impl std::fmt::Display for XyzWpr {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::nalgebra::{try_convert, Matrix4};
     use approx::assert_relative_eq;
-    use crate::nalgebra::{Matrix4, try_convert};
     use test_case::test_case;
 
     #[test_case((-0.8156824504, -0.5743236360, -0.0693866068, -413.8635232282, 0.0004524620, 0.1193088953, -0.9928570807, 263.1863811434, 0.5784997281, -0.8098874913, -0.0970583124, 291.9820746748, 0.0000000000, 0.0000000000, 0.0000000000, 1.0000000000), (-413.8635232282, 263.1863811434, 291.9820746748, -96.8338333769, -35.3450905433, 179.9682178248))]
